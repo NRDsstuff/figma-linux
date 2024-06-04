@@ -7,8 +7,6 @@ import {
   Rectangle,
   BrowserWindow,
   DidCreateWindowDetails,
-  Event,
-  HandlerDetails,
 } from "electron";
 
 import { LOGIN_PAGE, RECENT_FILES } from "Const";
@@ -23,12 +21,9 @@ import {
   isPrototypeUrl,
   isAppAuthRedeem,
   isFigmaDocLink,
-  isFigmaBoardLink,
-  isFigmaDesignLink,
 } from "Utils/Common";
 import { storage } from "Main/Storage";
 import { logger } from "Main/Logger";
-import { electron } from 'process';
 
 export default class MainTab {
   private _userId: string;
@@ -110,7 +105,7 @@ export default class MainTab {
     this.view.webContents.send("loadCurrentTheme", theme);
   }
 
-  private onMainTabWillNavigate(event: Event<any>, url: string) {
+  private onMainTabWillNavigate(event: Event, url: string) {
     if (isValidProjectLink(url) || isPrototypeUrl(url)) {
       app.emit("openUrlInNewTab", url);
 
@@ -120,52 +115,46 @@ export default class MainTab {
   private onDomReady(event: any) {
     this.reloadCurrentTheme();
   }
-  private onMainWindowWillNavigate(event: Event<any>, url: string) {
-    if (event?.sender) {
-      const currentUrl = event.sender.getURL();
-      if (isAppAuthRedeem(url)) {
-        return;
-      }
+  private onMainWindowWillNavigate(event: any, newUrl: string) {
+    const currentUrl = event.sender.getURL();
 
-      if (url === currentUrl) {
-        event.preventDefault();
-        return;
-      }
-
-
-      const from = parse(currentUrl);
-      const to = parse(url);
-
-      if (from.pathname === "/login") {
-        // this.tabManager.reloadAll();
-
-        event.preventDefault();
-        return;
-      }
-
-      if (to.pathname === "/logout") {
-        app.emit("signOut");
-      }
-
-      if (to.search && to.search.match(/[\?\&]redirected=1/)) {
-        event.preventDefault();
-        return;
-      }
+    if (isAppAuthRedeem(newUrl)) {
+      return;
     }
 
-    if (isFigmaDocLink(url)) {
-      shell.openExternal(url);
+    if (newUrl === currentUrl) {
       event.preventDefault();
       return;
     }
-    if (isFigmaBoardLink(url) || isFigmaDesignLink(url)) {
-      app.emit("openUrlInNewTab", url);
+
+    if (isFigmaDocLink(newUrl)) {
+      shell.openExternal(newUrl);
+
+      event.preventDefault();
+      return;
+    }
+
+    const from = parse(currentUrl);
+    const to = parse(newUrl);
+
+    if (from.pathname === "/login") {
+      // this.tabManager.reloadAll();
+
+      event.preventDefault();
+      return;
+    }
+
+    if (to.pathname === "/logout") {
+      app.emit("signOut");
+    }
+
+    if (to.search && to.search.match(/[\?\&]redirected=1/)) {
       event.preventDefault();
       return;
     }
   }
   private onNewWindow(window: BrowserWindow, details: DidCreateWindowDetails) {
-    const { url } = details;
+    const url = details.url;
     logger.debug("newWindow, url: ", url);
 
     if (/start_google_sso/.test(url)) return;
@@ -174,28 +163,11 @@ export default class MainTab {
       app.emit("openUrlInNewTab", url);
       return;
     }
-    if (isFigmaBoardLink(url) || isFigmaDesignLink(url)) {
-      window.destroy()
-      app.emit("openUrlInNewTab", url);
-      return;
-    }
 
     shell.openExternal(url);
   }
 
-  private windowOpenHandler(details: HandlerDetails) {
-    const { url } = details;
-
-    if (isPrototypeUrl(url) || isValidProjectLink(url) || isFigmaBoardLink(url) || isFigmaDesignLink(url)) {
-      app.emit("openUrlInNewTab", url);
-      return { action: "deny" };
-    } else {
-      return { action: "allow" };
-    }
-  }
-
   private registerEvents() {
-    this.view.webContents.setWindowOpenHandler(this.windowOpenHandler.bind(this));
     this.view.webContents.on("will-navigate", this.onMainTabWillNavigate.bind(this));
     this.view.webContents.on("will-navigate", this.onMainWindowWillNavigate.bind(this));
     this.view.webContents.on("dom-ready", this.onDomReady.bind(this));
