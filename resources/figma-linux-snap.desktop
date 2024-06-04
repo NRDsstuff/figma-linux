@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=Select for Figma
+Name=Figma Linux
 Comment=Unofficial desktop application for linux
 Exec=figma-linux %U
 Terminal=false

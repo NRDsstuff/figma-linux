@@ -197,13 +197,9 @@ export default class Tab {
   }
 
   private windowOpenHandler(details: HandlerDetails) {
-    const { url } = details;
+    const url = details.url;
 
-    if (isPrototypeUrl(url) || isValidProjectLink(url)) {
-      app.emit("openUrlInNewTab", url);
-    } else {
-      shell.openExternal(url);
-    }
+    shell.openExternal(url);
 
     return { action: "deny" };
   }
